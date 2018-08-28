@@ -1,0 +1,30 @@
+resolver ${NGINX_DNS_RESOLVER};
+auth_ldap_cache_enabled off;
+ldap_server ad {
+  url ${NGINX_LDAP_URL};
+  binddn "${NGINX_LDAP_BINDDN}";
+  binddn_passwd ${NGINX_LDAP_BINDDN_PASSWD};
+  group_attribute member;
+  group_attribute_is_dn on;
+  require group "CN=vpn-admins,CN=Users,DC=corp,DC=example,DC=com";
+  require group "CN=example-sysops,CN=Users,DC=corp,DC=example,DC=com";
+  require group "CN=dev-sysops,CN=Users,DC=corp,DC=example,DC=com";
+  require valid_user;
+  satisfy any;
+  connect_timeout ${NGINX_LDAP_CONNECT_TIMEOUT};                                                         
+  bind_timeout ${NGINX_LDAP_BIND_TIMEOUT};                                                            
+  request_timeout ${NGINX_LDAP_REQUEST_TIMEOUT};
+}
+
+server {
+  listen ${NGINX_PORT};
+  server_name  _;
+  set $upstream_endpoint ${NGINX_PROXY_PASS};
+
+  auth_ldap "Enter AD credentials:";
+  auth_ldap_servers ad;
+
+  location / {
+    proxy_pass $upstream_endpoint;
+  }
+}

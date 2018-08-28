@@ -1,0 +1,36 @@
+FROM jenkins/jenkins:2.117
+
+LABEL maintainer="Binh Nguyen" \
+    descriptions="Docker with Jenkins"
+
+ARG USER=ci-jenkins
+ARG UID=2500
+
+COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
+RUN /usr/local/bin/install-plugins.sh < /usr/share/jenkins/ref/plugins.txt
+
+COPY init.groovy.d/ /usr/share/jenkins/ref/init.groovy.d/
+
+# Install the latest Docker CE binaries
+USER root
+RUN apt-get update && \
+    apt-get -y install apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg2 \
+    software-properties-common && \
+    curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg > /tmp/dkey; apt-key add /tmp/dkey && \
+    add-apt-repository \
+    "deb [arch=amd64] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") \
+    $(lsb_release -cs) \
+    stable" && \
+    apt-get update && \
+    apt-get -y install docker-ce
+
+RUN useradd -m -c "CI User" ${USER} -u ${UID} -s /bin/bash
+RUN usermod -aG docker ${USER} && \
+    mkdir -p /home/${USER}/.ssh
+
+COPY ssh/ /home/${USER}/.ssh/
+RUN chmod 400 /home/${USER}/.ssh/id_rsa && \
+    chown -R ${USER}:${USER} /home/${USER}/.ssh
